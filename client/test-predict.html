@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model Test — Phase 4</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="page">
+    <h2>Model Integration Test (Phase 4)</h2>
+    <p class="lead">Dev-only test page — replaced by the real prediction form in Phase 5.</p>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <button id="schemaBtn" class="btn-ghost">Fetch schema</button>
+        <button id="fiBtn" class="btn-ghost">Fetch feature importance</button>
+        <button id="predBtn" class="btn-ghost">Run sample prediction</button>
+        <button id="mineBtn" class="btn-ghost">My history</button>
+      </div>
+      <pre id="out" style="margin:0;background:#F4F7FA;padding:14px;border-radius:6px;font-size:12px;overflow:auto;max-height:500px;color:#0B2A4A;"></pre>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script>
+    const out = document.getElementById('out');
+    function show(x) { out.textContent = JSON.stringify(x, null, 2); }
+
+    document.getElementById('schemaBtn').addEventListener('click', async () => {
+      show('Loading...');
+      show(await fetch('/api/model/schema').then((r) => r.json()));
+    });
+    document.getElementById('fiBtn').addEventListener('click', async () => {
+      show('Loading...');
+      show(await fetch('/api/model/feature-importance').then((r) => r.json()));
+    });
+    document.getElementById('predBtn').addEventListener('click', async () => {
+      show('Loading...');
+      const body = {
+        amount_usd: 2239.44,
+        annual_rate_pct: 120.41,
+        term_months: 24,
+        payment_frequency: 'Monthly',
+        product_code: 0,
+        loan_purpose: 'Equipment',
+        client_gender: 'Male',
+        marital_status: 'Married',
+        num_dependents: 4,
+        employment_sector: 'Retail_Trade',
+        months_at_employer: 20,
+        monthly_income_usd: 612.34,
+        existing_obligations: 1,
+        collateral_type: 'Property',
+        disbursement_channel: 'Cash',
+        province: 'Masvingo',
+        age_at_approval: 36.0,
+      };
+      show(
+        await fetch('/api/predictions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }).then((r) => r.json())
+      );
+    });
+    document.getElementById('mineBtn').addEventListener('click', async () => {
+      show('Loading...');
+      show(await fetch('/api/predictions/mine').then((r) => r.json()));
+    });
+  </script>
+</body>
+</html>

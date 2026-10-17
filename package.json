@@ -1,0 +1,14 @@
+{
+  "name": "loan-default-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Loan Default Prediction & Management System",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "model": "cd model-service && venv\\Scripts\\uvicorn.exe app:app --reload --port 8000"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.3",
+    "dotenv": "^18.0.8"
+  }
+}

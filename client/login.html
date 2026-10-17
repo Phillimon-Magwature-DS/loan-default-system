@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>Sign in - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <img src="/assets/logo.png" alt="LoanRisk Prediction System" class="brand-logo" />
+      <h1>Sign in</h1>
+      <p class="sub">Access your loan risk dashboard</p>
+
+      <div id="msg" class="msg"></div>
+
+      <form id="form" novalidate>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button id="submit" class="btn" type="submit">Sign in</button>
+      </form>
+
+      <div class="link-row">
+        <a href="/forgot-password.html">Forgot password?</a>
+      </div>
+      <div class="link-row">
+        No account? <a href="/signup.html">Register your company</a>
+      </div>
+
+      <div class="footer-status" id="status">Checking system status…</div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    (async () => {
+      const me = await api('/api/auth/me');
+      if (me.ok) {
+        window.location.replace('/dashboard.html');
+        return;
+      }
+      const st = document.getElementById('status');
+      const h = await api('/api/health');
+      if (h.ok) {
+        st.innerHTML = 'System <span class="ok">online</span>';
+      } else {
+        st.innerHTML = 'System <span class="err">offline</span>';
+      }
+    })();
+
+    const form = document.getElementById('form');
+    const msg = document.getElementById('msg');
+    const submit = document.getElementById('submit');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.style.display = 'none';
+      submit.disabled = true;
+      submit.textContent = 'Signing in…';
+
+      const payload = {
+        email: form.email.value.trim(),
+        password: form.password.value,
+      };
+
+      const r = await api('/api/auth/login', { method: 'POST', body: payload });
+
+      submit.disabled = false;
+      submit.textContent = 'Sign in';
+
+      if (!r.ok) {
+        showErr(msg, (r.data && r.data.error) || 'Login failed.');
+        return;
+      }
+
+      if (r.data.user.must_change_password) {
+        window.location.replace('/change-password.html');
+      } else {
+        window.location.replace('/dashboard.html');
+      }
+    });
+  </script>
+</body>
+</html>

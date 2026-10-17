@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>Register company - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <img src="/assets/logo.png" alt="LoanRisk Prediction System" class="brand-logo" />
+      <h1>Register your company</h1>
+      <p class="sub">Create the admin account for your organisation.</p>
+
+      <div id="msg" class="msg"></div>
+
+      <!-- Step 1 -->
+      <form id="step1" class="step active" novalidate>
+        <div class="field">
+          <label for="companyName">Company name</label>
+          <input id="companyName" required />
+        </div>
+        <div class="field">
+          <label for="companyEmail">Company email</label>
+          <input id="companyEmail" type="email" required />
+        </div>
+        <div class="field">
+          <label for="adminName">Your full name (admin)</label>
+          <input id="adminName" required />
+        </div>
+        <div class="field">
+          <label for="adminEmail">Your email (used to sign in)</label>
+          <input id="adminEmail" type="email" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" minlength="8" required autocomplete="new-password" />
+          <div class="help">At least 8 characters.</div>
+        </div>
+        <div class="field">
+          <label for="confirm">Confirm password</label>
+          <input id="confirm" type="password" minlength="8" required autocomplete="new-password" />
+        </div>
+        <button id="submit1" class="btn" type="submit">Send verification code</button>
+      </form>
+
+      <!-- Step 2 -->
+      <form id="step2" class="step" novalidate>
+        <p class="help" style="margin:0 0 12px;">
+          A 6-digit code was sent to <strong id="codeTo"></strong>. It expires in 10 minutes.
+        </p>
+        <div class="field">
+          <label for="code">Verification code</label>
+          <input id="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required />
+        </div>
+        <button id="submit2" class="btn" type="submit">Verify and create account</button>
+        <div class="link-row">
+          <button id="resend" class="btn-link" type="button">Resend code</button>
+          &nbsp;·&nbsp;
+          <button id="back" class="btn-link" type="button">Edit details</button>
+        </div>
+      </form>
+
+      <div class="link-row">
+        Already registered? <a href="/login.html">Sign in</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const msg = document.getElementById('msg');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const submit1 = document.getElementById('submit1');
+    const submit2 = document.getElementById('submit2');
+
+    function gather() {
+      return {
+        companyName: document.getElementById('companyName').value.trim(),
+        companyEmail: document.getElementById('companyEmail').value.trim(),
+        adminName: document.getElementById('adminName').value.trim(),
+        adminEmail: document.getElementById('adminEmail').value.trim(),
+        password: document.getElementById('password').value,
+      };
+    }
+
+    function validate(data) {
+      if (!data.companyName || !data.companyEmail) return 'Enter company name and email.';
+      if (!data.adminName || !data.adminEmail) return 'Enter your name and email.';
+      if (data.password.length < 8) return 'Password must be at least 8 characters.';
+      if (data.password !== document.getElementById('confirm').value) {
+        return 'Passwords do not match.';
+      }
+      return null;
+    }
+
+    async function requestCode() {
+      const data = gather();
+      const err = validate(data);
+      if (err) { showErr(msg, err); return false; }
+
+      submit1.disabled = true;
+      submit1.textContent = 'Sending code…';
+
+      const r = await api('/api/auth/signup/request-code', { method: 'POST', body: data });
+
+      submit1.disabled = false;
+      submit1.textContent = 'Send verification code';
+
+      if (!r.ok) {
+        showErr(msg, (r.data && r.data.error) || 'Could not send code.');
+        return false;
+      }
+
+      msg.style.display = 'none';
+      sessionStorage.setItem('pendingSignup', JSON.stringify(data));
+      document.getElementById('codeTo').textContent = data.adminEmail;
+      step1.classList.remove('active');
+      step2.classList.add('active');
+      return true;
+    }
+
+    step1.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await requestCode();
+    });
+
+    document.getElementById('back').addEventListener('click', () => {
+      step2.classList.remove('active');
+      step1.classList.add('active');
+      msg.style.display = 'none';
+    });
+
+    document.getElementById('resend').addEventListener('click', async () => {
+      const stored = JSON.parse(sessionStorage.getItem('pendingSignup') || 'null');
+      if (!stored) {
+        showErr(msg, 'Session expired. Please edit your details.');
+        return;
+      }
+      const r = await api('/api/auth/signup/request-code', { method: 'POST', body: stored });
+      if (r.ok) showOk(msg, 'A new code has been sent.');
+      else showErr(msg, (r.data && r.data.error) || 'Could not resend.');
+    });
+
+    step2.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.style.display = 'none';
+      const stored = JSON.parse(sessionStorage.getItem('pendingSignup') || 'null');
+      if (!stored) { showErr(msg, 'Session expired. Please edit your details.'); return; }
+      const code = document.getElementById('code').value.trim();
+      if (!/^\d{6}$/.test(code)) { showErr(msg, 'Enter the 6-digit code.'); return; }
+
+      submit2.disabled = true;
+      submit2.textContent = 'Creating account…';
+
+      const r = await api('/api/auth/signup/verify', {
+        method: 'POST',
+        body: { ...stored, code },
+      });
+
+      submit2.disabled = false;
+      submit2.textContent = 'Verify and create account';
+
+      if (!r.ok) {
+        showErr(msg, (r.data && r.data.error) || 'Verification failed.');
+        return;
+      }
+
+      sessionStorage.removeItem('pendingSignup');
+      window.location.replace('/dashboard.html');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>User Management - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="/dashboard.html" class="topbar-brand">
+      <img src="/assets/logo.png" alt="LoanRisk Prediction System" />
+    </a>
+    <div class="user">
+      <span id="userLine">Loading…</span>
+      <button id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h2>User Management</h2>
+        <p class="lead">Add staff, reset passwords, and control account access.</p>
+      </div>
+      <a href="/dashboard.html" class="btn-ghost">← Dashboard</a>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <h3 style="margin:0 0 12px;font-size:16px;">Add a user</h3>
+      <form id="addForm" class="inline-form" novalidate>
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input id="fullName" required />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" required />
+        </div>
+        <div class="field">
+          <label for="role">Role</label>
+          <select id="role">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button id="addBtn" type="submit" class="btn" style="width:auto;padding:10px 20px;">
+          Add user
+        </button>
+      </form>
+      <p class="help" style="margin:10px 0 0;">
+        New accounts are created with the temporary password <strong>0000</strong> and must be changed on first login.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 12px;font-size:16px;">Users in your company</h3>
+      <div class="table-wrap">
+        <table class="data-table" id="usersTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Last login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script>
+    const msg = document.getElementById('msg');
+    const tbody = document.getElementById('tbody');
+    const addForm = document.getElementById('addForm');
+    const addBtn = document.getElementById('addBtn');
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      })[c]);
+    }
+
+    function fmtDate(d) {
+      return d ? new Date(d).toLocaleString() : 'Never';
+    }
+
+    window.addEventListener('authready', async (ev) => {
+      const u = ev.detail;
+      if (u.role !== 'admin') {
+        window.location.replace('/dashboard.html');
+        return;
+      }
+      document.getElementById('userLine').innerHTML =
+        '<strong>' + esc(u.full_name) + '</strong> · ' + esc(u.role);
+      await loadUsers();
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      await api('/api/auth/logout', { method: 'POST' });
+      window.location.replace('/login.html');
+    });
+
+    async function loadUsers() {
+      const r = await api('/api/users');
+      if (!r.ok) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load users.</td></tr>';
+        return;
+      }
+      renderUsers(r.data.users);
+    }
+
+    function renderUsers(users) {
+      if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">No users yet.</td></tr>';
+        return;
+      }
+      const me = window.__user;
+      tbody.innerHTML = users
+        .map((u) => {
+          const isSelf = u.id === me.id;
+          const roleCell = isSelf
+            ? `<strong>${esc(u.role)}</strong>`
+            : `<select class="role-select" data-role-id="${u.id}">
+                <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
+                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+              </select>`;
+          const statusCell = u.is_active
+            ? '<span class="pill pill-ok">Active</span>'
+            : '<span class="pill pill-err">Disabled</span>';
+          const actionsCell = isSelf
+            ? '<em class="muted">This is you</em>'
+            : `<button class="btn-sm" data-reset="${u.id}">Reset password</button>
+               <button class="btn-sm" data-toggle="${u.id}" data-active="${u.is_active}">
+                 ${u.is_active ? 'Disable' : 'Enable'}
+               </button>`;
+          return `<tr>
+            <td>${esc(u.full_name)}</td>
+            <td>${esc(u.email)}</td>
+            <td>${roleCell}</td>
+            <td>${statusCell}</td>
+            <td>${esc(fmtDate(u.last_login_at))}</td>
+            <td>${actionsCell}</td>
+          </tr>`;
+        })
+        .join('');
+    }
+
+    tbody.addEventListener('change', async (e) => {
+      const sel = e.target.closest('select[data-role-id]');
+      if (!sel) return;
+      const id = sel.getAttribute('data-role-id');
+      const role = sel.value;
+      const r = await api('/api/users/' + id, { method: 'PATCH', body: { role } });
+      if (!r.ok) {
+        showErr(msg, (r.data && r.data.error) || 'Could not update role.');
+        await loadUsers();
+        return;
+      }
+      showOk(msg, 'Role updated.');
+    });
+
+    tbody.addEventListener('click', async (e) => {
+      const resetBtn = e.target.closest('button[data-reset]');
+      if (resetBtn) {
+        const id = resetBtn.getAttribute('data-reset');
+        if (!confirm('Reset this user\'s password to 0000?')) return;
+        const r = await api('/api/users/' + id + '/reset-password', { method: 'POST' });
+        if (!r.ok) {
+          showErr(msg, (r.data && r.data.error) || 'Reset failed.');
+          return;
+        }
+        showOk(msg, 'Password reset to 0000.');
+        await loadUsers();
+        return;
+      }
+      const toggleBtn = e.target.closest('button[data-toggle]');
+      if (toggleBtn) {
+        const id = toggleBtn.getAttribute('data-toggle');
+        const currentlyActive = toggleBtn.getAttribute('data-active') === 'true';
+        const r = await api('/api/users/' + id, {
+          method: 'PATCH',
+          body: { isActive: !currentlyActive },
+        });
+        if (!r.ok) {
+          showErr(msg, (r.data && r.data.error) || 'Update failed.');
+          return;
+        }
+        showOk(msg, currentlyActive ? 'User disabled.' : 'User enabled.');
+        await loadUsers();
+      }
+    });
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.style.display = 'none';
+      const fullName = document.getElementById('fullName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const role = document.getElementById('role').value;
+
+      if (!fullName || !email) {
+        showErr(msg, 'Enter name and email.');
+        return;
+      }
+
+      addBtn.disabled = true;
+      addBtn.textContent = 'Adding…';
+      const r = await api('/api/users', { method: 'POST', body: { fullName, email, role } });
+      addBtn.disabled = false;
+      addBtn.textContent = 'Add user';
+
+      if (!r.ok) {
+        const err = r.data && r.data.error ? r.data.error : 'Could not add user.';
+        const issues = r.data && r.data.issues
+          ? ' (' + r.data.issues.map((x) => x.message).join('; ') + ')'
+          : '';
+        showErr(msg, err + issues);
+        return;
+      }
+
+      document.getElementById('fullName').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('role').value = 'user';
+      showOk(msg, 'User added. They can now sign in with password 0000.');
+      await loadUsers();
+    });
+  </script>
+</body>
+</html>

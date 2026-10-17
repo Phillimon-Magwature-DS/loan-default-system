@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>Dashboard - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/dashboard.html" class="topbar-brand">
+      <img src="/assets/logo.png" alt="LoanRisk Prediction System" />
+    </a>
+    <div class="user">
+      <span id="userLine">Loading…</span>
+      <button id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h2>Dashboard</h2>
+        <p class="lead" id="scopeLine">Loading…</p>
+      </div>
+      <a href="/predict.html" class="btn" style="width:auto;padding:10px 20px;">New Prediction</a>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="dataset">Dataset Insights</button>
+      <button class="tab" data-tab="model">Model Insights</button>
+      <button class="tab" data-tab="management" id="tabMgmt" style="display:none;">Management</button>
+    </nav>
+
+    <!-- Overview -->
+    <section class="tab-content active" id="tab-overview">
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Loading…</div></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin:0 0 12px;font-size:16px;">Predictions (last 30 days)</h3>
+        <div style="position:relative;height:280px;"><canvas id="trendChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Dataset Insights -->
+    <section class="tab-content" id="tab-dataset">
+      <div class="kpi-grid" id="datasetKpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Loading…</div></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin:0 0 12px;font-size:16px;">Default rate by loan purpose</h3>
+        <div style="position:relative;height:440px;"><canvas id="purposeChart"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin:0 0 12px;font-size:16px;">Default rate by employment sector</h3>
+        <div style="position:relative;height:420px;"><canvas id="sectorChart"></canvas></div>
+      </div>
+
+      <div class="chart-row" style="margin-top:16px;">
+        <div class="card">
+          <h3 style="margin:0 0 12px;font-size:16px;">Default rate by collateral type</h3>
+          <div style="position:relative;height:280px;"><canvas id="collateralChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 12px;font-size:16px;">Default rate vs interest rate bucket</h3>
+          <div style="position:relative;height:280px;"><canvas id="rateBucketChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Model Insights -->
+    <section class="tab-content" id="tab-model">
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:16px;">Feature importance</h3>
+        <p class="muted" style="margin:0 0 14px;font-size:13px;">
+          How much each field contributes to the XGBoost model's predictions (aggregated across all one-hot encoded categories).
+        </p>
+        <div style="position:relative;height:460px;"><canvas id="fiChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Management (admin only) -->
+    <section class="tab-content" id="tab-management">
+      <div class="tile-grid">
+        <a href="/users.html" class="tile">
+          <h3>User Management</h3>
+          <p>Add staff, reset passwords, and control account access.</p>
+        </a>
+        <a href="/history.html" class="tile">
+          <h3>All Predictions</h3>
+          <p>Company-wide prediction history.</p>
+        </a>
+        <a href="/predict.html" class="tile">
+          <h3>New Prediction</h3>
+          <p>Assess default risk for a loan application.</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>Prediction History - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Loan Default Prediction System</h1>
+    <div class="user">
+      <span id="userLine">Loading...</span>
+      <button id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h2>Prediction History</h2>
+        <p class="lead">Every prediction made through the system is recorded here.</p>
+      </div>
+      <a href="/dashboard.html" class="btn-ghost">← Dashboard</a>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <label for="scope" style="font-size:13px;font-weight:bold;">View:</label>
+        <select id="scope" class="role-select" style="padding:6px 10px;">
+          <option value="mine">My predictions</option>
+          <option value="all" id="scopeAllOption" style="display:none;">All predictions (company)</option>
+        </select>
+        <input id="search" placeholder="Search purpose, province, sector…" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #E2E8EF;border-radius:6px;font-family:inherit;font-size:13px;" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table" id="predTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th id="userCol">User</th>
+              <th>Amount (USD)</th>
+              <th>Purpose</th>
+              <th>Province</th>
+              <th>Probability</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="7" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="detailPanel" class="card" style="display:none;margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;font-size:16px;">Prediction details</h3>
+        <button id="closeDetail" class="btn-link">Close</button>
+      </div>
+      <div id="detailContent"></div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script>
+    const msg = document.getElementById('msg');
+    const tbody = document.getElementById('tbody');
+    const scopeSel = document.getElementById('scope');
+    const searchInput = document.getElementById('search');
+    const detailPanel = document.getElementById('detailPanel');
+    const detailContent = document.getElementById('detailContent');
+    const userCol = document.getElementById('userCol');
+    let allRows = [];
+    let isAdmin = false;
+    let currentUser = null;
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      })[c]);
+    }
+
+    function riskLevel(p) {
+      if (p < 0.3) return { key: 'low', label: 'Low' };
+      if (p < 0.5) return { key: 'medium', label: 'Medium' };
+      return { key: 'high', label: 'High' };
+    }
+
+    function fmtDate(d) {
+      return d ? new Date(d).toLocaleString() : '—';
+    }
+
+    function renderRows(rows) {
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="' + (isAdmin ? 7 : 6) + '" class="muted">No predictions yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows
+        .map((r) => {
+          const p = Number(r.probability);
+          const risk = riskLevel(p);
+          const input = r.input_data || {};
+          const userCell = isAdmin ? '<td>' + esc(r.user_name || '—') + '</td>' : '';
+          return `<tr class="pred-row" data-id="${r.id}" style="cursor:pointer;">
+            <td>${esc(fmtDate(r.created_at))}</td>
+            ${userCell}
+            <td>${input.amount_usd != null ? esc(Number(input.amount_usd).toFixed(2)) : '—'}</td>
+            <td>${esc(input.loan_purpose || '—')}</td>
+            <td>${esc(input.province || '—')}</td>
+            <td>${(p * 100).toFixed(1)}%</td>
+            <td><span class="risk-badge badge-${risk.key}">${risk.label}</span></td>
+          </tr>`;
+        })
+        .join('');
+    }
+
+    function filterRows(rows) {
+      const q = (searchInput.value || '').toLowerCase().trim();
+      if (!q) return rows;
+      return rows.filter((r) => {
+        const d = r.input_data || {};
+        return [d.loan_purpose, d.province, d.employment_sector, d.collateral_type,
+                d.product_code, d.payment_frequency, r.user_name]
+          .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+      });
+    }
+
+    async function load() {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">Loading…</td></tr>';
+      const scope = scopeSel.value;
+      const path = scope === 'all' ? '/api/predictions' : '/api/predictions/mine';
+      const r = await api(path);
+      if (!r.ok) {
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">Failed to load.</td></tr>';
+        return;
+      }
+      allRows = r.data.predictions || [];
+      userCol.style.display = scope === 'all' ? '' : 'none';
+      renderRows(filterRows(allRows));
+    }
+
+    window.addEventListener('authready', async (ev) => {
+      currentUser = ev.detail;
+      isAdmin = currentUser.role === 'admin';
+      document.getElementById('userLine').innerHTML =
+        '<strong>' + esc(currentUser.full_name) + '</strong> · ' + esc(currentUser.role);
+      if (isAdmin) {
+        document.getElementById('scopeAllOption').style.display = '';
+      } else {
+        userCol.style.display = 'none';
+      }
+      await load();
+    });
+
+    scopeSel.addEventListener('change', load);
+    searchInput.addEventListener('input', () => renderRows(filterRows(allRows)));
+
+    tbody.addEventListener('click', (e) => {
+      const row = e.target.closest('tr[data-id]');
+      if (!row) return;
+      const id = Number(row.getAttribute('data-id'));
+      const r = allRows.find((x) => x.id === id);
+      if (!r) return;
+      const input = r.input_data || {};
+      const p = Number(r.probability);
+      const risk = riskLevel(p);
+      const entries = Object.entries(input)
+        .filter(([, v]) => v !== null && v !== undefined && v !== '')
+        .sort(([a], [b]) => a.localeCompare(b));
+      detailContent.innerHTML = `
+        <p style="margin:0 0 12px;">
+          <span class="risk-badge badge-${risk.key}">${risk.label} risk</span>
+          &nbsp; <strong>${(p * 100).toFixed(2)}%</strong> probability
+          &nbsp;·&nbsp; ${esc(fmtDate(r.created_at))}
+          ${isAdmin && r.user_name ? '&nbsp;·&nbsp; ' + esc(r.user_name) : ''}
+        </p>
+        <table class="data-table" style="font-size:13px;">
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>
+            ${entries.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
+          </tbody>
+        </table>`;
+      detailPanel.style.display = 'block';
+      detailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    document.getElementById('closeDetail').addEventListener('click', () => {
+      detailPanel.style.display = 'none';
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      await api('/api/auth/logout', { method: 'POST' });
+      window.location.replace('/login.html');
+    });
+  </script>
+</body>
+</html>

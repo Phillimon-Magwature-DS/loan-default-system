@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B2A4A" />
+  <title>New Prediction - LoanRisk Prediction System</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="/dashboard.html" class="topbar-brand">
+      <img src="/assets/logo.png" alt="LoanRisk Prediction System" />
+    </a>
+    <div class="user">
+      <span id="userLine">Loading…</span>
+      <button id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h2>Loan Default Prediction</h2>
+        <p class="lead">Enter the loan and client details. Fields left blank are handled by the model's built-in imputer.</p>
+      </div>
+      <a href="/dashboard.html" class="btn-ghost">← Dashboard</a>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <form id="predictForm" novalidate>
+      <fieldset class="form-section">
+        <legend>Loan details</legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="amount_usd">Loan amount (USD)</label>
+            <input id="amount_usd" type="number" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label for="annual_rate_pct">Annual interest rate (%)</label>
+            <input id="annual_rate_pct" type="number" step="0.01" min="0" max="500" />
+          </div>
+          <div class="field">
+            <label for="term_months">Loan term (months)</label>
+            <input id="term_months" type="number" step="1" min="1" max="120" />
+          </div>
+          <div class="field">
+            <label for="payment_frequency">Payment frequency</label>
+            <select id="payment_frequency"></select>
+          </div>
+          <div class="field">
+            <label for="product_code">Product code</label>
+            <select id="product_code"></select>
+          </div>
+          <div class="field">
+            <label for="loan_purpose">Loan purpose</label>
+            <select id="loan_purpose"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Client profile</legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="client_gender">Gender</label>
+            <select id="client_gender"></select>
+          </div>
+          <div class="field">
+            <label for="marital_status">Marital status</label>
+            <select id="marital_status"></select>
+          </div>
+          <div class="field">
+            <label for="num_dependents">Number of dependents</label>
+            <input id="num_dependents" type="number" step="1" min="0" max="20" />
+          </div>
+          <div class="field">
+            <label for="age_at_approval">Age at approval (years)</label>
+            <input id="age_at_approval" type="number" step="0.1" min="18" max="100" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Employment &amp; income</legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="employment_sector">Employment sector</label>
+            <select id="employment_sector"></select>
+          </div>
+          <div class="field">
+            <label for="months_at_employer">Months at current employer</label>
+            <input id="months_at_employer" type="number" step="1" min="0" max="600" />
+          </div>
+          <div class="field">
+            <label for="monthly_income_usd">Monthly income (USD)</label>
+            <input id="monthly_income_usd" type="number" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label for="existing_obligations">Existing obligations</label>
+            <input id="existing_obligations" type="number" step="1" min="0" max="20" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Security &amp; disbursement</legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="collateral_type">Collateral type</label>
+            <select id="collateral_type"></select>
+          </div>
+          <div class="field">
+            <label for="disbursement_channel">Disbursement channel</label>
+            <select id="disbursement_channel"></select>
+          </div>
+          <div class="field">
+            <label for="province">Province</label>
+            <select id="province"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="reset" class="btn-ghost">Clear form</button>
+        <button type="submit" id="submitBtn" class="btn" style="width:auto;padding:11px 28px;">
+          Assess risk
+        </button>
+      </div>
+    </form>
+
+    <section id="resultPanel" class="card result-panel" style="display:none;">
+      <div class="result-header">
+        <span class="result-label">Predicted probability of default</span>
+        <span id="riskBadge" class="risk-badge">-</span>
+      </div>
+      <div id="resultNumber" class="result-number">-</div>
+      <div class="gauge">
+        <div id="gaugeFill" class="gauge-fill" style="width:0%;"></div>
+      </div>
+      <p id="resultRecommendation" class="result-recommendation"></p>
+      <div class="result-actions">
+        <a href="/history.html" class="btn-ghost">View history</a>
+        <button type="button" id="newPredictionBtn" class="btn-ghost">New prediction</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/predict.js"></script>
+</body>
+</html>
